@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="ko">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Game Audio · 사운드 비교</title><link rel="stylesheet" href="/style.css"></head>
+<body>
+<main>
+  <header><a class="brand" href="/" aria-label="Game Audio 홈"><span class="brand-icon">♫</span> GAME AUDIO <span class="lab">LISTENING ROOM</span></a><span class="connection" id="connection">음원 불러오는 중</span></header>
+  <section class="intro"><span class="eyebrow">GAME SOUND STUDIES</span><h1>게임 속 장면은<br><em>어떤 소리일까.</em></h1><p>같은 장면, 다른 사운드. 직접 듣고 어울리는 소리를 찾아보세요.</p><div class="hero-art" aria-hidden="true"><div class="wheel"><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="stand"></div><span>PLAY / LISTEN / COMPARE</span></div></section>
+  <nav class="categories" aria-label="소리 종류"><button data-category="bgm" aria-pressed="true"><span>01</span> 공원 BGM <small>32초</small></button><button data-category="crowd" aria-pressed="false"><span>02</span> 군중 소리 <small>20초</small></button><button data-category="drop" aria-pressed="false"><span>03</span> 급강하 비명 <small>6초</small></button><button data-category="boss" aria-pressed="false"><span>04</span> 보스 BGM <small>60초</small></button></nav>
+  <section class="workspace" aria-labelledby="category-title">
+    <div class="section-heading"><div><span class="eyebrow" id="category-tag">BACKGROUND MUSIC</span><h2 id="category-title">햇살 좋은 공원의 배경음악</h2><p id="brief"></p></div><div class="takes" aria-label="후보 선택"><span>후보</span><button data-take="A" aria-pressed="true">A</button><button data-take="B" aria-pressed="false">B</button><button data-take="C" aria-pressed="false">C</button><button data-take="D" aria-pressed="false">D</button></div></div>
+    <div class="toolbar"><label><input type="checkbox" id="matched" checked> 비교 음량 맞추기</label><label><input type="checkbox" id="loop"> 반복 재생</label><label class="volume">볼륨 <input type="range" id="volume" min="0" max="1" step="0.01" value="0.65" aria-label="전체 볼륨"></label><button id="sequence" class="sequence">차례로 비교 재생 →</button></div>
+    <div id="cards" class="cards"></div>
+    <p id="play-status" class="play-status" role="status">재생 버튼을 누르면 바로 들을 수 있어요.</p>
+  </section>
+  <section class="scene"><div><span class="eyebrow">IN CONTEXT</span><h3>소리를 한 장면으로 들어보기</h3><p>ElevenLabs BGM + 군중 + 롤러코스터를 겹친 32초 미리듣기</p></div><audio id="scene-audio" controls preload="metadata" aria-label="공원 장면 믹스"></audio></section>
+  <footer><p>원본과 비교용 음원을 구분해 보관합니다. 음량 맞추기는 미리듣기에만 적용됩니다.</p><p>반복 버튼으로 연결감을 확인해 보세요. 후보 번호는 서로 다른 생성 결과이며 같은 멜로디나 연기를 뜻하지 않습니다.</p><span>LOCAL LISTENING ROOM · 음질과 자연스러움은 직접 듣고 평가해 주세요.</span></footer>
+</main><script src="/app.js"></script>
+</body></html>

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Game Audio"
+  short_description: "Create game audio with ElevenLabs or local models"
+  default_prompt: "Use $game-audio to create, edit, and review game sounds."
