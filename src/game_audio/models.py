@@ -53,11 +53,13 @@ class GenerateRequest(StrictModel):
     voice_id: str | None = None
     language: str = "ko"
     instruction: str = ""
+    # Unspecified preserves legacy routing; character means dialogue requiring acting.
+    dialogue_role: Literal["unspecified", "character", "narration"] = "unspecified"
     reference_audio: str | None = None
     reference_text: str | None = None
     voice_mode: Literal["custom", "design", "clone"] = "custom"
     speaker: str = "Sohee"
-    # Auto keeps other providers untouched and finishes explicitly selected Gemini dialogue.
+    # Auto keeps other providers untouched and finishes Gemini dialogue.
     dialogue_processing: Literal["auto", "none", "density"] = "auto"
     # Music controls are sent only to backends that support them.
     bpm: int | None = Field(None, ge=30, le=300)
@@ -76,6 +78,8 @@ class GenerateRequest(StrictModel):
             raise ValueError("Music eligibility evidence applies to ElevenLabs music or auto music routing")
         if self.kind != "dialogue" and (self.voice_id or self.reference_audio or self.instruction):
             raise ValueError("Voice fields apply only to dialogue")
+        if self.kind != "dialogue" and self.dialogue_role != "unspecified":
+            raise ValueError("Dialogue role applies only to dialogue")
         if self.kind != "dialogue" and self.dialogue_processing not in ("auto", "none"):
             raise ValueError("Dialogue processing applies only to dialogue")
         if self.kind != "music" and (self.bpm is not None or self.key):

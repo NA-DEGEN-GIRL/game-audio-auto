@@ -53,7 +53,7 @@ Install FFmpeg and the core Python dependencies for import, edits and analysis.
 For ElevenLabs, use an already authenticated tool or the runtime's
 `.secrets/elevenlabs_api_key` / `ELEVENLABS_API_KEY`; do not copy Windows path
 settings or its .venv to Linux. Use `doctor --online` for a read-only validation.
-For explicitly requested Gemini, use `.secrets/gemini_api_key` and
+For default acted character/NPC dialogue or explicitly selected Gemini, use `.secrets/gemini_api_key` and
 `gemini-voices` for its separate read-only access check; see
 [character voices](character-voices.md). Both API routes work without a GPU or
 downloaded generation models.

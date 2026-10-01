@@ -40,7 +40,7 @@ def effective_mode(root: Path, settings: Settings):
 
 
 def gemini_credential(root: Path, settings: Settings):
-    # Explicit Gemini requests have their own credential, independent of ElevenLabs.
+    # Gemini uses its own credential, independent of ElevenLabs.
     for name in ("GEMINI_API_KEY", "GOOGLE_API_KEY"):
         value = os.environ.get(name, "").strip()
         if value:
@@ -75,22 +75,28 @@ def capabilities(root: Path, settings: Settings):
                        "key_prompt": settings.key_prompt, "account_checked": False,
                        "music_eligible": settings.elevenlabs_music_eligible},
         "gemini": {"key_present": bool(gemini_key), "key_source": gemini_source,
-                   "explicit_selection_only": True, "account_checked": False,
+                   "default_dialogue_roles": ["character"], "account_checked": False,
                    "generation_allowed": settings.mode != "only_local" and bool(gemini_key)},
-        "effective_mode_note": "Auto routing follows ElevenLabs availability; explicitly selected Gemini "
-                               "uses its own key unless configured_mode is only_local",
+        "effective_mode_note": "Character dialogue defaults to Gemini with its own key; other auto routing "
+                               "follows ElevenLabs availability. Explicit only_local blocks all remote generation",
         "local": local, "ffmpeg": settings.ffmpeg or shutil.which("ffmpeg"),
         "listening": "Requires an actual audio-capable reviewer; analysis is not listening",
     }
 
 
 def select_provider(root: Path, request: GenerateRequest, settings: Settings):
-    mode = settings.mode if request.provider == "gemini" else effective_mode(root, settings)
+    character_default = request.kind == "dialogue" and request.dialogue_role == "character"
+    gemini_route = request.provider == "gemini" or (request.provider == "auto" and character_default)
+    mode = settings.mode if gemini_route else effective_mode(root, settings)
     provider = request.provider
     adopted_model = None
     reason = "User/request selected provider"
     if provider == "auto":
-        if mode == "auto":
+        if mode == "auto" and character_default:
+            if request.model and not request.model.startswith("gemini-"):
+                raise ValueError("Set provider explicitly to preserve a non-Gemini character model")
+            provider, reason = "gemini", "Acted character/NPC dialogue default"
+        elif mode == "auto":
             provider, reason = "elevenlabs", "ElevenLabs-first default with an available key"
         elif request.kind == "music":
             choice = settings.music_defaults.get(request.purpose)

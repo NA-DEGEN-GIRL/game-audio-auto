@@ -107,6 +107,38 @@ def test_explicit_gemini_does_not_read_an_unrelated_invalid_eleven_key(tmp_path,
     assert plan(tmp_path, dialogue(), Settings())["ready"]
 
 
+def test_acted_character_default_is_independent_of_eleven_access(tmp_path, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "unrelated invalid value")
+    request = dialogue(provider="auto", dialogue_role="character")
+    selected = plan(tmp_path, request, Settings())
+    assert selected["ready"] and selected["provider"] == "gemini"
+    assert selected["model"] == "gemini-3.8-flash-tts"
+    assert selected["dialogue_processing"] == "density"
+    monkeypatch.delenv("GEMINI_API_KEY")
+    blocked = plan(tmp_path, request, Settings())
+    assert not blocked["ready"] and blocked["provider"] == "gemini"
+    assert any("GEMINI_API_KEY" in item for item in blocked["blockers"])
+
+
+def test_character_default_preserves_explicit_provider_and_local_policy(tmp_path, monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "test-eleven")
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    request = dialogue(dialogue_role="character", provider="elevenlabs", instruction="", model="eleven_v4")
+    selected = plan(tmp_path, request, Settings())
+    assert selected["provider"] == "elevenlabs" and selected["model"] == "eleven_v4"
+    assert selected["dialogue_processing"] == "none"
+    local = plan(tmp_path, dialogue(dialogue_role="character", provider="auto"), Settings(mode="only_local"))
+    assert local["provider"] == "qwen" and local["transport"] == "local"
+    for role in ("unspecified", "narration"):
+        selected = plan(tmp_path, dialogue(provider="auto", dialogue_role=role, instruction=""), Settings())
+        assert selected["provider"] == "elevenlabs" and selected["model"] == "eleven_v3"
+    with pytest.raises(ValueError, match="Set provider explicitly"):
+        plan(tmp_path, dialogue(provider="auto", dialogue_role="character", model="eleven_v3"), Settings())
+    with pytest.raises(ValueError, match="Dialogue role"):
+        GenerateRequest(name="hit", kind="sfx", prompt="impact", duration_seconds=1, dialogue_role="character")
+
+
 def test_official_rest_body_receipt_response_provenance_and_reuse(tmp_path, monkeypatch):
     calls = []
     request = dialogue(seed=99)

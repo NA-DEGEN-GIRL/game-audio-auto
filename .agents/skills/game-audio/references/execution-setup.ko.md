@@ -49,7 +49,7 @@ Linux에서는 사용 가능한 python3로 래퍼를 실행해도 된다.
 ElevenLabs는 인증된 도구 또는 .secrets/elevenlabs_api_key /
 ELEVENLABS_API_KEY를 이용하고 doctor --online으로 읽기 전용 확인을 한다.
 Windows의 경로 설정이나 .venv를 Linux로 그대로 복사하지 않는다.
-명시적으로 요청한 Gemini는 .secrets/gemini_api_key와 gemini-voices로
+연기가 필요한 캐릭터·NPC의 기본 제공자이거나 명시적으로 선택한 Gemini는 .secrets/gemini_api_key와 gemini-voices로
 별도 인증을 확인한다. [캐릭터 음성 안내](character-voices.md)를 참고한다.
 두 API 경로는 GPU나 로컬 생성 모델 없이 동작한다.
 ACE-Step·Stable Audio·Qwen은 선택한 경우 local-models.md를 따라 별도 설치한다.

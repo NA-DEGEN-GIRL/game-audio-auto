@@ -1,6 +1,6 @@
 # ElevenLabs access and plugin cooperation
 
-For the optional Gemini character-dialogue provider, use [character-voices.md](character-voices.md). It has separate credentials and Voices/TTS APIs; ElevenLabs plugins, voice IDs and credits do not apply to it.
+For Gemini, the default provider for acted character/NPC dialogue, use [character-voices.md](character-voices.md). It has separate credentials and Voices/TTS APIs; ElevenLabs plugins, voice IDs and credits do not apply to it.
 
 ## Access check
 
@@ -12,24 +12,25 @@ Use the installed relevant skill for prompting and supported SDK operations; rec
 
 ## Speech models v4
 
-Selection policy **2026-10-02**: use **`eleven_v3` by default for game dialogue, barks and narration**. V4 support was verified on 2026-10-01 after its 2026-09-28 launch, but availability and newer release do not establish better character fit. Gemini stays explicit-only with its separate density-finishing default.
+Selection policy **2026-10-02**: use **Gemini 3.8 Flash TTS for acted characters/NPCs** and **`eleven_v3` for general narration or selected ElevenLabs dialogue**. V4 support was verified on 2026-10-01 after its 2026-09-28 launch, but availability and newer release do not establish better character fit. Gemini uses its separate key and density-finishing default; accepted character/provider choices take precedence.
 
 | Situation | Selection |
 | --- | --- |
-| New game dialogue with no model preference | Eleven v3 |
+| New acted character/NPC dialogue or expressive barks | Gemini 3.8 Flash TTS + density finishing |
+| General narration, or dialogue with ElevenLabs selected | Eleven v3 |
 | Existing accepted character model/voice | Preserve it, including an accepted v4 character |
 | Explicit v4 request | Eleven v4 |
-| Realistic NPC, narration or recorded-voice reproduction | V4 may be proposed as an audition; keep v3 until requested or accepted |
+| Realistic NPC, narration or recorded-voice reproduction | V4 may be proposed as an audition; keep the selected/default provider until requested or accepted |
 | Explicit low-latency v4 request | Eleven v4 Turbo |
 | Explicit Gemini request | Gemini 3.8 Flash TTS, density finishing by default |
 
-**Voice Design limitation, checked 2026-10-02:** the official [v4 FAQ](https://elevenlabs.io/docs/overview/capabilities/text-to-speech/eleven-v4) warns that ElevenLabs Voice Design voices can have weaker performance and sound quality on v4 than on earlier models; the [Voice Design help page](https://elevenlabs.io/docs/help-center/product/voices/voice-design/what-is-voice-design) also notes reduced expressiveness. This supports the v3 starting choice for a designed character, but is not a guarantee of universal v3 superiority. Preserve an accepted model on each character. Inspect observed voice metadata/design records rather than infer the source type from a fictional name or an acting prompt. `premade` library voices and Gemini Voice Design are not evidence that this ElevenLabs-specific limitation applies. The CLI's default also selects v3; explicit saved models are never rewritten by policy changes.
+**Voice Design limitation, checked 2026-10-02:** the official [v4 FAQ](https://elevenlabs.io/docs/overview/capabilities/text-to-speech/eleven-v4) warns that ElevenLabs Voice Design voices can have weaker performance and sound quality on v4 than on earlier models; the [Voice Design help page](https://elevenlabs.io/docs/help-center/product/voices/voice-design/what-is-voice-design) also notes reduced expressiveness. Within ElevenLabs, this supports the v3 starting choice for a designed character, but is not a guarantee of universal v3 superiority. Preserve an accepted model on each character. Inspect observed voice metadata/design records rather than infer the source type from a fictional name or an acting prompt. `premade` library voices and Gemini Voice Design are not evidence that this ElevenLabs-specific limitation applies. The CLI selects Gemini for `dialogue_role: "character"` with `provider: "auto"`, and v3 for selected ElevenLabs dialogue; explicit saved models are never rewritten by policy changes.
 
 The existing `POST /v1/text-to-speech/{voice_id}` route supports these model IDs; the authenticated `GET /v1/models` lists v4 and v4 Turbo with `can_do_text_to_speech: true`. Keep `model_id` explicit. The adapter sends exact text/audio tags, the selected existing voice, `language_code` and a best-effort seed. Repeated seeds do not guarantee identical audio. It remains a single-speaker file-generation adapter, not a live WebSocket or multi-speaker implementation. The runtime's existing request limit is 5,000 characters, although v4's service limit is 10,000.
 
 Use inline directions such as `[whispers]`, `[angry]`, `[laughs]` and punctuation. Do not add SSML `<break>` tags. V4 exposes Stability and Similarity; Style and Speed settings are not supported. These overrides are not currently runtime request fields. Avoid background sound tags for a dry game dialogue asset unless requested. A reused voice ID preserves the selected identity, but a new model may change its realized timbre and accent: compare rather than promise identical sound.
 
-For character acting, diagnose voice selection, spoken wording and delivery directions separately. Generic `[sinister]` or `[angry]` tags do not specify a boss's vocal weight, articulation or pacing. Use concise audible qualities, for example `[low, gravelly voice] [menacing] [slow, deliberate delivery]`, then compare a more explicit direction if needed. Keep directions inside audio-tag brackets; ordinary prose prepended to TTS text may be spoken aloud. A playful selected voice or playful dialogue can still bias the result. Keep the character's voice and spoken words fixed for a prompt comparison; audition a different voice as a separately labeled experiment, not a silent identity replacement.
+For character acting, diagnose voice selection, spoken wording and delivery directions separately. Generic `[sinister]` or `[angry]` tags do not specify a boss's vocal weight, articulation or pacing. Use concise audible qualities, for example `[low, gravelly voice] [menacing] [natural conversational pace]`, then compare a more explicit direction if needed. Keep directions inside audio-tag brackets; ordinary prose prepended to TTS text may be spoken aloud. Use slow pacing only when the scene calls for it; a threatening boss need not speak slowly. A playful selected voice or playful dialogue can still bias the result. Keep the character's voice and spoken words fixed for a prompt comparison; audition a different voice as a separately labeled experiment, not a silent identity replacement.
 
 English descriptive tags with Korean dialogue are a useful experiment, not a proven universal advantage. Check whether prior tags were already English before blaming their language. To compare English and Korean directions, translate the same direction and preserve voice, dialogue, model, seed and postprocessing. One take per condition does not separate language effects from generation variability. Retain dry sources and matched-volume previews; do not present pitch shifts, distortion or reverb as evidence of improved model acting. If v3 suits an established character better, preserve that explicit preference rather than forcing an upgrade.
 
@@ -60,7 +61,7 @@ The private file contains the key alone. `doctor` reports only presence/source, 
 
 If the user already chose a private path, use it; do not force the plugin's example `.env` convention or ask to rotate a valid key. If using an official SDK example directly, supply the key only inside that process. No global environment change is needed.
 
-`key-status requested` records a question already asked; it does not ask the question itself. `key-status declined` also sets `only_local`. `key-status configured` records setup state, while a real read query is the authentication evidence. With mode `auto`, absent keys make CLI generation local-only; it cannot inspect connector-managed authentication. Existing audio import/edit stays local regardless of its original provider.
+`key-status requested` records a question already asked; it does not ask the question itself. `key-status declined` also sets `only_local`. `key-status configured` records setup state, while a real read query is the authentication evidence. With mode `auto`, missing ElevenLabs access makes non-character auto routing local; character dialogue uses Gemini’s separate access and reports a missing Gemini key as a blocker; it cannot inspect connector-managed authentication. Existing audio import/edit stays local regardless of its original provider.
 
 An invalid/unauthorized key is not a successful capability check. Explain the observed failure once; local work can continue when consistent with the request. If the user explicitly required ElevenLabs, do not relabel a local result as fulfilling that requirement. Do not silently reroute an already submitted job.
 

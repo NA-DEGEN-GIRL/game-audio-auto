@@ -11,7 +11,10 @@ const briefs = {
   "boss-space": ["BOSS ROOM · REVERB STUDY", "목소리 뒤로 퍼지는 보스룸의 울림", "E형 연기의 현재 상태·짧은 공간·넓은 석조 보스룸을 비교합니다. 한국어와 영어, ElevenLabs와 Gemini 각각 같은 음원에 잔향만 추가했습니다. Gemini의 기존 밀도 보정은 유지했습니다. 피치 변경과 새 음성 생성은 없습니다. 비교 음량을 맞춘 스테레오 미리듣기이며 게임 엔진의 공간 음향은 별도로 적용해야 합니다."],
   "boss-v3-gemini": ["BOSS AUDITION · ELEVEN V3 / GEMINI", "세 가지 보스 연기, 두 가지 언어", "낮은 위협·폭발하는 분노·위험한 광기를 한국어와 영어로 새로 생성했습니다. V1~V6는 Eleven v3의 Callum, G1~G6는 Gemini의 기존 설계 목소리입니다. 같은 번호끼리 같은 언어·톤입니다. Gemini는 기본 밀도 강화, Eleven v3는 추가 보정 없이 비교하며 잔향은 넣지 않았습니다. F의 긴 연기 지시는 사용하지 않았습니다."]
 };
-const bossCategories = ["boss-voice", "boss-space", "boss-v3-gemini"];
+briefs["gemini-direction"] = ["GEMINI · DIRECTION / PACE", "지시 언어와 대사 속도 비교", "같은 Gemini 목소리로 영어/한국어 지시 × 한국어/영어 대사 × 기본/조금 빠른 속도를 비교합니다. P1~P8은 새 생성본, S1·S4는 기존 느린 G1·G4입니다. 밀도 보정은 동일하며 재생 속도는 바꾸지 않았습니다. 지시 언어별 우열은 직접 비교해 주세요."];
+briefs["gemini-enough"] = ["GEMINI · ENOUGH!!!", "분노가 폭발하는 한마디", "같은 Gemini 목소리로 Enough!!!를 외칩니다. N1은 단호한 일갈, N2·N3는 폭발적인 분노를 영어/한국어로 지시한 후보입니다. 생성된 발성 자체를 비교하며 EQ·밀도 강화·피치 변경·잔향 효과는 추가하지 않았습니다. 비교 음량은 일정한 게인으로만 맞췄습니다."];
+const bossCategories = ["boss-voice", "boss-space", "boss-v3-gemini", "gemini-direction", "gemini-enough"];
+let directionLanguage = "all", directionPace = "all";
 let catalog, category = "bgm", take = "A", signature = "", queue = [], sequenceActive = false;
 const processingVersions = ["clean", "clean-eq", "clean-studio", "clear-presence", "clear-lowcut", "clear-air", "clear-density", "clear-detail"];
 const processingNames = {clean: "새 음색 원본", "clean-eq": "EQ 보정", "clean-studio": "EQ + 음량 정리", "clear-presence": "발음 강조", "clear-lowcut": "저음 억제", "clear-air": "밝은 고역", "clear-density": "밀도 강화", "clear-detail": "작은 발음 살리기"};
@@ -49,8 +52,10 @@ function dialogueProcessingOrder(track) {
 }
 function visibleBossVoiceTrack(track, target = "boss-voice") {
   return track.category === target && !track.superseded
-    && (bossLanguage === "all" || track.language === bossLanguage)
-    && (bossProvider === "all" || track.provider === bossProvider)
+    && (target === "gemini-enough" || bossLanguage === "all" || track.language === bossLanguage)
+    && (target.startsWith("gemini-") || bossProvider === "all" || track.provider === bossProvider)
+    && (target !== "gemini-direction" || ((directionLanguage === "all" || track.instruction_language === directionLanguage)
+      && (directionPace === "all" || track.pace === directionPace)))
     && (target !== "boss-voice" || bossDirection === "all" || track.direction === bossDirection);
 }
 function saveDialogueSelection() {
@@ -97,7 +102,7 @@ function playQueued() {
 }
 function render() {
   if (!catalog) return;
-  $("#cards").classList.toggle("dialogue-pairs", (category === "dialogue" && !dialogueProcessing) || ["voice-models", "boss-voice", "boss-v3-gemini"].includes(category));
+  $("#cards").classList.toggle("dialogue-pairs", (category === "dialogue" && !dialogueProcessing) || ["voice-models", ...bossCategories.filter(c => c !== "boss-space")].includes(category));
   $("#cards").classList.toggle("dialogue-processing-grid", (category === "dialogue" && dialogueProcessing) || category === "boss-space");
   const compareVariants = ["legendary", "dialogue", "voice-models", ...bossCategories].includes(category);
   $(".takes").hidden = compareVariants;
@@ -106,8 +111,10 @@ function render() {
   $("#dialogue-line-control").hidden = category !== "dialogue" || !dialogueProcessing;
   $("#dialogue-line").value = dialogueLine;
   $("#dialogue-version-control").hidden = category !== "dialogue" || dialogueProcessing;
-  $("#boss-language-control").hidden = !bossCategories.includes(category);
-  $("#boss-provider-control").hidden = !bossCategories.includes(category);
+  $("#boss-language-control").hidden = !bossCategories.includes(category) || category === "gemini-enough";
+  $("#boss-provider-control").hidden = !bossCategories.includes(category) || category.startsWith("gemini-");
+  $("#direction-language-control").hidden = category !== "gemini-direction";
+  $("#direction-pace-control").hidden = category !== "gemini-direction";
   $("#boss-direction-control").hidden = category !== "boss-voice";
   $("#dialogue-version").value = selectedDialogueVersion();
   for (const option of $("#dialogue-version").options) {
@@ -119,6 +126,9 @@ function render() {
   $('[data-category="boss-voice"] small').textContent = `${catalog.tracks.filter(t => visibleBossVoiceTrack(t)).length}개`;
   $('[data-category="boss-space"] small').textContent = `${catalog.tracks.filter(t => visibleBossVoiceTrack(t, "boss-space")).length}개`;
   $('[data-category="boss-v3-gemini"] small').textContent = `${catalog.tracks.filter(t => visibleBossVoiceTrack(t, "boss-v3-gemini")).length}개`;
+  for (const name of ["gemini-direction", "gemini-enough"]) {
+    $(`[data-category="${name}"] small`).textContent = `${catalog.tracks.filter(t => visibleBossVoiceTrack(t, name)).length}개`;
+  }
   const candidates = [...new Set(catalog.tracks.filter(t => t.category === category).map(t => t.candidate))].sort();
   if (candidates.length && !candidates.includes(take)) take = candidates[0];
   document.querySelectorAll("[data-category]").forEach(b => b.setAttribute("aria-pressed", b.dataset.category === category));
@@ -219,6 +229,12 @@ $("#boss-direction").addEventListener("change", () => {
 });
 $("#boss-provider").addEventListener("change", () => {
   stopAll(); bossProvider = $("#boss-provider").value; render(); status("음성 제공자를 바꿨습니다.");
+});
+$("#direction-language").addEventListener("change", () => {
+  stopAll(); directionLanguage = $("#direction-language").value; render(); status("지시 언어를 바꿨습니다.");
+});
+$("#direction-pace").addEventListener("change", () => {
+  stopAll(); directionPace = $("#direction-pace").value; render(); status("발화 속도 지시를 바꿨습니다.");
 });
 $("#dialogue-version").addEventListener("change", () => {
   stopAll(); dialogueVersion = $("#dialogue-version").value;

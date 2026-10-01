@@ -1,6 +1,6 @@
 # Character dialogue with Gemini
 
-Optional provider, checked **2026-09-28**. Use Gemini 3.8 Flash TTS only when the user selects Gemini, including an established selection for this character/task. Key presence alone never selects it. Keep ElevenLabs as the general default and respect `only_local`. Flash-Lite is an explicit lower-cost alternative; do not silently switch an established voice's synthesis model. Gemini dialogue defaults to density finishing (밀도 강화), with the native performance retained separately.
+Default for acted characters/NPCs, policy updated **2026-10-02**. Use Gemini 3.8 Flash TTS for expressive character dialogue and barks, or when explicitly requested. Set `dialogue_role: "character"` for auto routing. Preserve an accepted character’s provider/model/voice explicitly; general narration remains Eleven v3. Respect `only_local`. A missing Gemini key blocks this route for setup instead of silently switching providers. Flash-Lite is an explicit lower-cost alternative; do not silently switch an established voice's synthesis model. Gemini dialogue defaults to density finishing (밀도 강화), with the native performance retained separately.
 
 ## Setup
 
@@ -52,6 +52,7 @@ Use the returned actual `voice_id` for subsequent dialogue. A prebuilt voice sel
 {
   "name": "gregoriya-warning",
   "kind": "dialogue",
+  "dialogue_role": "character",
   "provider": "gemini",
   "model": "gemini-3.8-flash-tts",
   "voice_id": "REPLACE_WITH_OBSERVED_VOICE_ID",
@@ -67,6 +68,10 @@ Use the returned actual `voice_id` for subsequent dialogue. A prebuilt voice sel
 ```
 
 Run `plan`, `generate --async`, then inspect the returned job. Omit duration: delivery controls length. The runtime sends `prompt` as the literal transcript and `instruction` as `speech_metadata.style`, not as spoken direction. Keep momentary vocal events in English angle-bracket tags (`<laugh>`, `<gasp>`, `<short pause>`). Avoid changing age/gender/accent in each acting instruction. Do not repeat a long character biography or "keep identical timbre" instruction on every line.
+
+Default to a natural conversational pace; request slow, deliberate speech only when the scene needs it. For pace comparisons, preserve voice, exact transcript and finishing, then vary only the short instruction. For direction-language comparisons, translate equivalent instructions while keeping spoken language separate. Korean and English directions are audition options, not an established quality ranking; one take per condition still contains generation variability. Use a short instruction such as “자연스러운 대화 속도로, 쉼은 짧게 하고 자음은 또렷하게 발음한다.” Keep source audio at its generated speed.
+
+For a furious one-word outburst, direct onset, vocal intensity and release in the performance. Keep dry dialogue and later reverb/pitch/layer effects separate so room effects cannot mask weak acting or be mistaken for model ability.
 
 For multiple custom characters, synthesize each turn individually and mix locally. Single-request multi-speaker support is limited to two prebuilt voices. Archive the native 24 kHz mono PCM16 WAV; a 48 kHz PCM24 delivery is a conversion, not additional source detail. Seeds are not sent by this adapter.
 

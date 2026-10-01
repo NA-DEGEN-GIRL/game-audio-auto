@@ -144,6 +144,7 @@ def test_generate_reuses_legacy_jobs_without_retroactive_finishing(demo, tmp_pat
         calls.append(request.name)
         record = save_job(root, request, len(calls))
         record["request"].pop("dialogue_processing")
+        record["request"].pop("dialogue_role")
         record["status"] = "completed"
         write_json(job_path(root, record["id"]), record)
         return record
@@ -158,6 +159,7 @@ def test_generate_reuses_legacy_jobs_without_retroactive_finishing(demo, tmp_pat
     first = read_json(directory / state["lines"][0]["bound_spec"])
     assert demo._recover_submission(tmp_path, first)["id"] == state["lines"][0]["job_id"]
     assert not demo._same_generation_request(first, {**first, "dialogue_processing": "none"})
+    assert not demo._same_generation_request(first, {**first, "dialogue_role": "character"})
 
 
 @pytest.mark.parametrize("density", [False, True])

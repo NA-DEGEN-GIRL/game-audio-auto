@@ -113,11 +113,13 @@ def _preflight(root, state, directory):
 
 
 def _same_generation_request(left, right):
-    # Old immutable jobs predate this optional field. Their saved selection still
+    # Old immutable jobs predate these optional fields. Their saved selection still
     # controls finishing; comparing requests must not retrofit a new selection.
     left, right = dict(left), dict(right)
     left.setdefault("dialogue_processing", "auto")
     right.setdefault("dialogue_processing", "auto")
+    left.setdefault("dialogue_role", "unspecified")
+    right.setdefault("dialogue_role", "unspecified")
     return left == right
 
 
