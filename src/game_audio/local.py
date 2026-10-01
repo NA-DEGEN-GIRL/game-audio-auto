@@ -23,6 +23,12 @@ def generate_local(root: Path, request: GenerateRequest, selected: dict, take: P
     context_path = take / "local-request.json"
     write_json(context_path, context)
     runner = Path(__file__).resolve().parents[2] / "scripts/local_runner.py"
+    # A POSIX virtualenv interpreter is often a symlink to the system Python.
+    # Preserve that final path component so Python finds the virtualenv config.
+    python = Path(backend.python).expanduser()
+    if not python.is_absolute():
+        python = root / python
+    python = python.parent.resolve() / python.name
     raw = take / "provider.wav"
     if raw.exists():
         raise ValueError("Uncheckpointed local audio exists; inspect and preserve it before retrying")
@@ -42,7 +48,7 @@ def generate_local(root: Path, request: GenerateRequest, selected: dict, take: P
     with FileLock(lock, timeout=3600):
         write_json(receipt_path, {"state": "running", "started_at": now(), "model": selected["model"]})
         with (take / "local.log").open("ab") as log:
-            result = subprocess.run([str(resolve(root, backend.python)), str(runner),
+            result = subprocess.run([str(python), str(runner),
                                      str(context_path), str(raw)],
                                     cwd=resolve(root, backend.project_root) if backend.project_root else root,
                                     env=environment, stdout=log, stderr=subprocess.STDOUT, check=False,

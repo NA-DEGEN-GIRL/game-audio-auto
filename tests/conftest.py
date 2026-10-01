@@ -7,7 +7,8 @@ import soundfile as sf
 
 @pytest.fixture(autouse=True)
 def no_real_credentials(monkeypatch):
-    for key in ("ELEVENLABS_API_KEY", "ELEVEN_API_KEY", "ELEVENLABS_API_KEY_FILE"):
+    for key in ("ELEVENLABS_API_KEY", "ELEVEN_API_KEY", "ELEVENLABS_API_KEY_FILE",
+                "GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_API_KEY_FILE"):
         monkeypatch.delenv(key, raising=False)
 
 

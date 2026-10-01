@@ -7,8 +7,10 @@ from .audio import audition, measure
 from .benchmark import adopt, create_plan
 from .config import capabilities, load_settings, plan, save_settings
 from .elevenlabs import ElevenLabs
+from .gemini import MODELS as GEMINI_MODELS
+from .gemini import Gemini
 from .jobs import get_job, launch, record_review, run_job, submit, verify_manifest
-from .models import EditRequest, GenerateRequest, ImportRequest, Review
+from .models import EditRequest, FinishDialogueRequest, GenerateRequest, ImportRequest, Review
 from .storage import read_json, resolve
 
 
@@ -23,7 +25,7 @@ def parser():
     mode.add_argument("value", choices=["auto", "only_local"])
     key = sub.add_parser("key-status", help="Record the key request state without receiving a secret")
     key.add_argument("value", choices=["not_asked", "requested", "declined", "configured"])
-    for command in ("plan", "generate", "edit", "import"):
+    for command in ("plan", "generate", "edit", "import", "finish-dialogue"):
         item = sub.add_parser(command)
         item.add_argument("spec", type=Path)
         if command != "plan":
@@ -36,6 +38,17 @@ def parser():
     sub.add_parser("account", help="Read subscription/usage only")
     voices = sub.add_parser("voices", help="Read available voices without creating one")
     voices.add_argument("--page-token")
+    gemini_voices = sub.add_parser("gemini-voices", help="Read Gemini's available voice library")
+    gemini_voices.add_argument("--page-token")
+    gemini_voice = sub.add_parser("gemini-voice", help="Read a Gemini voice and its expiry metadata")
+    gemini_voice.add_argument("voice_id")
+    gemini_model = sub.add_parser("gemini-model", help="Read model metadata; generates no audio")
+    gemini_model.add_argument("model", nargs="?", default=GEMINI_MODELS[0], choices=GEMINI_MODELS)
+    for command in ("voice-plan", "voice-create"):
+        item = sub.add_parser(command, help="Plan/create a persistent character voice separately from dialogue")
+        item.add_argument("spec", type=Path)
+    voice_show = sub.add_parser("voice-show", help="Inspect a saved character voice without a remote call")
+    voice_show.add_argument("name_or_path")
     history = sub.add_parser("history", help="Read existing generation history")
     history.add_argument("--start-after")
     recovery = sub.add_parser("recover-history", help="Download an identified prior result; never resubmit")
@@ -91,9 +104,10 @@ def execute(args):
             settings.mode = "only_local"
         save_settings(root, settings)
         return capabilities(root, settings)
-    if command in ("plan", "generate", "edit", "import"):
+    if command in ("plan", "generate", "edit", "import", "finish-dialogue"):
         model = {"plan": GenerateRequest, "generate": GenerateRequest,
-                 "edit": EditRequest, "import": ImportRequest}[command]
+                 "edit": EditRequest, "import": ImportRequest,
+                 "finish-dialogue": FinishDialogueRequest}[command]
         request = model.model_validate(read_json(resolve(root, str(args.spec))))
         return plan(root, request, settings) if command == "plan" else submit(
             root, command, request, args.background)
@@ -101,6 +115,22 @@ def execute(args):
         return get_job(root, args.job_id)
     if command in ("resume", "_run"):
         return launch(root, args.job_id) if getattr(args, "background", False) else run_job(root, args.job_id)
+    if command in ("gemini-voices", "gemini-voice", "gemini-model"):
+        client = Gemini(root, settings)
+        try:
+            if command == "gemini-voices":
+                return client.voices(args.page_token)
+            if command == "gemini-voice":
+                return client.voice(args.voice_id)
+            return client.model(args.model)
+        finally:
+            client.close()
+    if command in ("voice-plan", "voice-create", "voice-show"):
+        from .character_voices import create_voice, plan_voice, show_voice
+        if command == "voice-show":
+            return show_voice(root, args.name_or_path)
+        spec = read_json(resolve(root, str(args.spec)))
+        return plan_voice(root, spec) if command == "voice-plan" else create_voice(root, spec)
     if command in ("account", "voices", "history", "recover-history"):
         client = ElevenLabs(root, settings)
         try:

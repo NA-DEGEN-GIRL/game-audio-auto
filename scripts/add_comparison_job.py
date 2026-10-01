@@ -12,7 +12,7 @@ from game_audio.storage import digest, read_json, write_json
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("job_id")
-    parser.add_argument("category", choices=["bgm", "crowd", "drop", "boss"])
+    parser.add_argument("category", choices=["bgm", "crowd", "drop", "boss", "legendary"])
     parser.add_argument("--candidate-start", default="A", choices=list("ABCDEFGHIJKLMNOPQRSTUVWXYZ"))
     args = parser.parse_args()
     root = Path(__file__).resolve().parents[1]
@@ -29,7 +29,7 @@ def main():
     folder = deliveries / "themepark-comparison-20260915"
     catalog_path = folder / "catalog.json"
     catalog = read_json(catalog_path)
-    target = {"bgm": -18, "crowd": -23, "drop": -18, "boss": -18}[args.category]
+    target = {"bgm": -18, "crowd": -23, "drop": -18, "boss": -18, "legendary": -18}[args.category]
     entry = next(p for p in catalog["providers"] if p["id"] == provider)
     if args.category not in entry["categories"]:
         entry["categories"].append(args.category)

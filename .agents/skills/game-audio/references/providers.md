@@ -1,5 +1,7 @@
 # ElevenLabs access and plugin cooperation
 
+For the optional Gemini character-dialogue provider, use [character-voices.md](character-voices.md). It has separate credentials and Voices/TTS APIs; ElevenLabs plugins, voice IDs and credits do not apply to it.
+
 ## Access check
 
 Use the current tool inventory or tool search to discover actual ElevenLabs capabilities. Check that the tool supports this kind of audio, returns a playable/local output or downloadable asset, and exposes enough result identity to recover it. A connection UI or installed skill is not an authenticated generation test. Prefer a read-only account/voice query when available; do not spend credits just to test authentication.
@@ -7,6 +9,35 @@ Use the current tool inventory or tool search to discover actual ElevenLabs capa
 The ElevenLabs plugin installed when this skill was authored contains provider skills for `sound-effects`, `text-to-speech`, `music` and `setup-api-key`. Their generation examples use the official SDK/API and `ELEVENLABS_API_KEY`. Installation of these instructions does not remove the key requirement. If a future connector supplies working managed authentication, use it without requesting a redundant local key. Do not extract connector secrets or modify the plugin cache.
 
 Use the installed relevant skill for prompting and supported SDK operations; reconcile stale model/parameter examples against current official API documentation. Keep this game skill's model selection, routing, requested take count, provenance and review workflow around the provider operation. The runtime's guarded API adapter supports standard SFX/TTS/music and is the direct route when the plugin lacks the selected model; advanced plugin operations can be imported as existing files.
+
+## Speech models v4
+
+Selection policy **2026-10-02**: use **`eleven_v3` by default for game dialogue, barks and narration**. V4 support was verified on 2026-10-01 after its 2026-09-28 launch, but availability and newer release do not establish better character fit. Gemini stays explicit-only with its separate density-finishing default.
+
+| Situation | Selection |
+| --- | --- |
+| New game dialogue with no model preference | Eleven v3 |
+| Existing accepted character model/voice | Preserve it, including an accepted v4 character |
+| Explicit v4 request | Eleven v4 |
+| Realistic NPC, narration or recorded-voice reproduction | V4 may be proposed as an audition; keep v3 until requested or accepted |
+| Explicit low-latency v4 request | Eleven v4 Turbo |
+| Explicit Gemini request | Gemini 3.8 Flash TTS, density finishing by default |
+
+**Voice Design limitation, checked 2026-10-02:** the official [v4 FAQ](https://elevenlabs.io/docs/overview/capabilities/text-to-speech/eleven-v4) warns that ElevenLabs Voice Design voices can have weaker performance and sound quality on v4 than on earlier models; the [Voice Design help page](https://elevenlabs.io/docs/help-center/product/voices/voice-design/what-is-voice-design) also notes reduced expressiveness. This supports the v3 starting choice for a designed character, but is not a guarantee of universal v3 superiority. Preserve an accepted model on each character. Inspect observed voice metadata/design records rather than infer the source type from a fictional name or an acting prompt. `premade` library voices and Gemini Voice Design are not evidence that this ElevenLabs-specific limitation applies. The CLI's default also selects v3; explicit saved models are never rewritten by policy changes.
+
+The existing `POST /v1/text-to-speech/{voice_id}` route supports these model IDs; the authenticated `GET /v1/models` lists v4 and v4 Turbo with `can_do_text_to_speech: true`. Keep `model_id` explicit. The adapter sends exact text/audio tags, the selected existing voice, `language_code` and a best-effort seed. Repeated seeds do not guarantee identical audio. It remains a single-speaker file-generation adapter, not a live WebSocket or multi-speaker implementation. The runtime's existing request limit is 5,000 characters, although v4's service limit is 10,000.
+
+Use inline directions such as `[whispers]`, `[angry]`, `[laughs]` and punctuation. Do not add SSML `<break>` tags. V4 exposes Stability and Similarity; Style and Speed settings are not supported. These overrides are not currently runtime request fields. Avoid background sound tags for a dry game dialogue asset unless requested. A reused voice ID preserves the selected identity, but a new model may change its realized timbre and accent: compare rather than promise identical sound.
+
+For character acting, diagnose voice selection, spoken wording and delivery directions separately. Generic `[sinister]` or `[angry]` tags do not specify a boss's vocal weight, articulation or pacing. Use concise audible qualities, for example `[low, gravelly voice] [menacing] [slow, deliberate delivery]`, then compare a more explicit direction if needed. Keep directions inside audio-tag brackets; ordinary prose prepended to TTS text may be spoken aloud. A playful selected voice or playful dialogue can still bias the result. Keep the character's voice and spoken words fixed for a prompt comparison; audition a different voice as a separately labeled experiment, not a silent identity replacement.
+
+English descriptive tags with Korean dialogue are a useful experiment, not a proven universal advantage. Check whether prior tags were already English before blaming their language. To compare English and Korean directions, translate the same direction and preserve voice, dialogue, model, seed and postprocessing. One take per condition does not separate language effects from generation variability. Retain dry sources and matched-volume previews; do not present pitch shifts, distortion or reverb as evidence of improved model acting. If v3 suits an established character better, preserve that explicit preference rather than forcing an upgrade.
+
+Distinguish the language of the **spoken script** from the language of its **acting directions**. For multilingual diagnosis, compare translated scripts under equivalent directions with the same provider/voice, and record the language and model. The v4 product guide says cross-language generation prioritizes natural target-language speech over carrying the source accent; that is not proof of a Korean-specific bug or identical character texture. Test in the actual game language. Cross-provider auditions use separately identified voices and finishing: Gemini's density default and different voice identity must be visible rather than described as a same-speaker model benchmark.
+
+The connected speech plugin's checked schema now includes `eleven_v4`. Prefer it for ordinary generation when it supports the requested controls and archival. Use the guarded runtime for API verification and controlled comparisons requiring a recorded seed, exact prior request or durable local jobs; the plugin does not expose seed. Do not modify the plugin cache. Preserve old model labels/receipts, and resume saved jobs without upgrading or automatically retrying them. Older cloned voices can need v4 retraining/verified consent; do not create or retrain a clone for a model test when an existing library voice suffices.
+
+Sources: [launch](https://elevenlabs.io/blog/eleven-v4), [model/product guide](https://elevenlabs.io/docs/eleven-creative/playground/text-to-speech), [speech API](https://elevenlabs.io/docs/api-reference/text-to-speech/convert), [prompting](https://elevenlabs.io/docs/overview/capabilities/text-to-speech/best-practices).
 
 ## Music v2.5 model and transport
 

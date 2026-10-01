@@ -136,3 +136,51 @@ def test_music_v25_rejection_never_downgrades_or_reposts(tmp_path, monkeypatch):
         assert read_json(tmp_path / "remote.json")["state"] == "rejected"
     finally:
         client.close()
+
+
+@pytest.mark.parametrize("model", [None, "eleven_v4", "eleven_v4_turbo", "eleven_v3"])
+def test_dialogue_v3_default_and_explicit_models_reach_api(tmp_path, monkeypatch, model):
+    calls = []
+    expected = model or "eleven_v3"
+    dialogue = GenerateRequest(name="boss-dialogue", kind="dialogue", model=model,
+                               voice_id="observed-voice", prompt="[angry] 물러서라.", language="ko")
+
+    def handler(req):
+        calls.append(req)
+        assert req.url.path == "/v1/text-to-speech/observed-voice"
+        assert json.loads(req.content) == {"text": dialogue.prompt, "model_id": expected,
+                                           "seed": 42, "language_code": "ko"}
+        assert read_json(tmp_path / "remote.json")["model"] == expected
+        return httpx.Response(200, content=b"speech", headers={"request-id": "speech-1"})
+
+    client = make_client(tmp_path, monkeypatch, handler)
+    try:
+        selected = plan(tmp_path, dialogue, Settings())
+        assert selected["provider"] == "elevenlabs" and selected["model"] == expected
+        assert selected["dialogue_processing"] == "none"
+        raw, receipt = client.generate(dialogue, selected, tmp_path, "mp3_44100_128")
+        assert raw.read_bytes() == b"speech" and receipt["model"] == expected
+        assert client.generate(dialogue, selected, tmp_path, "mp3_44100_128")[0] == raw
+        assert len(calls) == 1
+    finally:
+        client.close()
+
+
+def test_v4_rejection_keeps_selected_model_and_does_not_retry(tmp_path, monkeypatch):
+    calls = []
+
+    def handler(req):
+        calls.append(json.loads(req.content)["model_id"])
+        return httpx.Response(422, json={"detail": "model unavailable"})
+
+    client = make_client(tmp_path, monkeypatch, handler)
+    dialogue = GenerateRequest(name="test", kind="dialogue", model="eleven_v4", voice_id="observed", prompt="안녕")
+    try:
+        selected = plan(tmp_path, dialogue, Settings())
+        with pytest.raises(ValueError, match="HTTP 422"):
+            client.generate(dialogue, selected, tmp_path, "mp3_44100_128")
+        with pytest.raises(UnknownSubmission):
+            client.generate(dialogue, selected, tmp_path, "mp3_44100_128")
+        assert calls == ["eleven_v4"]
+    finally:
+        client.close()

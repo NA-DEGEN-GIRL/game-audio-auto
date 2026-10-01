@@ -2,6 +2,8 @@
 
 The runtime root is four parents above this skill's `scripts/audioctl.py` after resolving its junction/symlink. Run that wrapper with an available Python, or run the following from the runtime root:
 
+The wrapper supports `--execution local|windows|auto`, `runtime-status` and `runtime-configure`. Read [execution-setup.md](execution-setup.md) for OS-specific preparation, registration and stable job routing; read [windows-bridge.md](windows-bridge.md) for cross-host file transfer. Runtime commands below are unchanged.
+
 ```sh
 uv sync --locked --python 3.12
 uv run --no-sync python -m game_audio.cli doctor
@@ -23,9 +25,12 @@ Install FFmpeg on PATH (or set `ffmpeg` in `audio-system.local.json`). Core setu
 | `generate request.json --async` | Start the specified takes and return a job ID |
 | `import import.json` | Snapshot existing supplied/plugin audio, export locally and record provenance |
 | `edit edit.json [--async]` | Create a revision with trim/gain/fades/loop processing |
+| `finish-dialogue finish.json [--async]` | Create a local density-finished child revision while preserving the source |
 | `job JOB_ID` | Inspect progress, outputs or failure |
 | `resume JOB_ID [--async]` | Continue the saved job without replacing its provider/request |
 | `account`, `voices [--page-token TOKEN]`, `history [--start-after ID]` | Read-only ElevenLabs queries |
+| `voice-plan design.json`, `voice-create design.json`, `voice-show NAME` | Plan/create/archive a Gemini character voice, or inspect its saved profile |
+| `gemini-voices [--page-token TOKEN]`, `gemini-voice ID`, `gemini-model [MODEL]` | Read-only Gemini voice/model queries; no audio generation |
 | `recover-history JOB_ID --take 1 --history-id ID` | Recover an identified previous result, zero POSTs; then resume |
 | `analyze master.wav` | Numerical WAV/PCM inspection, no listening |
 | `audition a.wav b.wav --output preview.wav --repeat 3 --target-lufs -18` | Level-matched preview with A/B labels in adjacent JSON |
@@ -56,6 +61,8 @@ Install FFmpeg on PATH (or set `ffmpeg` in `audio-system.local.json`). Core setu
 Common generation fields: `name`, `kind` (`sfx|ambience|dialogue|music`), `prompt`, `provider`, optional `model`, `duration_seconds`, `variants` (default 1), `seed`, `purpose`, `acceptance`, `playback`, `export`, optional `max_credits`. Non-dialogue needs duration. SFX v2 takes 0.5–30 s; native looping is a request, still requiring listening review.
 
 Dialogue uses exact spoken `prompt`, `language`, and `voice_id` for ElevenLabs. Omit duration; speech controls actual length. Qwen uses `voice_mode` (`custom|design|clone`), `speaker`, `instruction` or `reference_audio`/`reference_text` as applicable. Defaults are Korean and Sohee for local custom voice, not a mandate for every character. For music, `provider: "auto"` selects ElevenLabs `music_v2_5` when a key is available. Explicit local/model choices take precedence. Without a key or in `only_local`, `auto` reuses a saved local choice for its `purpose`; otherwise the agent chooses `ace_step` or `stable_audio` from the brief without asking the user to choose a backend. Saved local preferences do not override the newer ElevenLabs default. Explicit Stable Audio music defaults to `small-music`. Exact `bpm`/`key` fields are currently sent only to ACE-Step. Other music backends receive such direction in the prompt. Seeds are best-effort controls only where sent, not a guarantee of cross-provider reproducibility.
+
+For explicitly requested Gemini character dialogue, [character-voices.md](character-voices.md) provides voice design and synthesis requests. `provider: "gemini"` uses a separate key, exact spoken `prompt`, persistent `voice_id` and short acting `instruction`; it does not change music routing. `dialogue_processing` accepts `auto` (default), `none` or `density`. Auto selects density only for Gemini dialogue; other providers remain unprocessed. Set `none` for an untouched delivery or `density` for an explicitly requested density finish on another dialogue provider. The generation's original `revision` remains preserved; use the job's `delivery_revisions` for finished deliveries and `finishing_jobs` for their local processing jobs. Do not mistake the preserved generation revision for the selected finished delivery.
 
 ## ElevenLabs BGM v2.5
 
@@ -111,7 +118,32 @@ Use actual metadata or `unknown`; do not invent IDs. `source_sha256` can bind th
 
 Optional edit fields: `source_sha256`, `parent_revision`, `fade_in_seconds`, `fade_out_seconds`, `notes`, `playback`. The parent is inferred only from an actual matching manifest take. If supplied, `parent_revision` must match it. Omitting playback preserves the parent settings. Timing edits clear an inherited sync anchor for rechecking; a crossfade implies loop intent unless playback was explicitly supplied.
 
-Loop crossfade rotates the start past the overlap and shortens the result by that overlap duration. It is useful for steady ambience; it does not find musical beats or promise seamless rhythm. Other authoring (layer mixing, EQ, denoising, precise beat editing) can use trusted local tools/FFmpeg with explicit source files, recorded operations and a new imported result. Those are not implicit CLI flags.
+Loop crossfade rotates the start past the overlap and shortens the result by that overlap duration. It is useful for steady ambience; it does not find musical beats or promise seamless rhythm. Other authoring (layer mixing, custom EQ, denoising, precise beat editing) can use trusted local tools/FFmpeg with explicit source files, recorded operations and a new imported result. Those are not implicit CLI flags.
+
+## ElevenLabs dialogue models
+
+Game dialogue defaults to `eleven_v3`. Set `model` to `eleven_v4` for an explicit v4 request or an established v4 character, or `eleven_v4_turbo` for an explicit low-latency choice. A realistic-NPC brief does not automatically override the default. Use an observed `voice_id` and put supported audio tags in `prompt`; do not send acting direction through `instruction` (that field belongs to Gemini/local routes). Saved requests retain their model. The same guarded TTS endpoint and private key apply; see [current model guidance](providers.md#speech-models-v4).
+
+## Dialogue density finishing
+
+`finish-dialogue` processes an existing take locally without another provider call:
+
+```json
+{
+  "name": "mage_warning_density",
+  "source": "/absolute/revision/take-001/master.wav",
+  "preset": "density",
+  "low_shelf_db": -2,
+  "presence_db": 1.5,
+  "export": {"sample_rate": 48000, "channels": "mono", "subtype": "PCM_24"}
+}
+```
+
+```sh
+uv run --no-sync python -m game_audio.cli finish-dialogue .work/finish.json
+```
+
+The density preset uses gentle EQ and adaptive 2:1 RMS compression. `low_shelf_db` accepts -6 to 0 dB; `presence_db` accepts 0 to 4.5 dB. It preserves timing/pitch, records processing settings and binds a child to the matching source manifest. Optional `source_sha256`, `parent_revision`, `playback` and `notes` follow the same provenance principles as edits. Use the original performance for alternate finishes rather than repeatedly processing a finished copy. It applies only the negative gain needed for -1.2 dBTP headroom; this is not an in-game loudness target or listening approval. Small-phoneme/detail enhancement is not a named runtime preset; author it separately when requested and retain its exact recipe.
 
 ## Evidence and artifacts
 

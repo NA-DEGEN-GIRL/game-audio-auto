@@ -22,7 +22,7 @@ Local layers can repair a missing transient, resonance or spatial tail without r
 
 Use the requested language and exact intended words. For Korean, check pronunciation of names, spacing-sensitive phrases, numbers, particles and natural sentence endings. Describe acting in the backend's supported controls; do not put explanatory prose into the spoken script accidentally.
 
-Select an ElevenLabs voice from an observed account listing or a user-supplied existing ID. Keep character voice ID, model and relevant settings in the brief. Use v3 for expressive performance, then choose another supported model if the observed consistency/latency need warrants it. Do not assume every voice sounds equally convincing in every language.
+Select an ElevenLabs voice from an observed account listing or a user-supplied existing ID. Keep character voice ID, model and relevant settings in the brief. Use v3 for ordinary new game dialogue and preserve an accepted character's model. A realistic NPC or narration can justify proposing a v4 audition, but does not authorize an automatic model switch. Voice Design's documented v4 limitation is another reason to start designed characters with v3. See [provider prompting](providers.md#speech-models-v4). Do not assume every voice sounds equally convincing in every language, or that a longer acting direction improves character fit.
 
 For local Qwen:
 
@@ -35,6 +35,8 @@ Check consonants, breaths, pace, emotion and character continuity through actual
 ## Local finishing
 
 Keep the raw provider file and edit a new revision. Trim unwanted padding without cutting the intended attack or tail. Use short fades where they fix a click; do not soften every transient automatically. Apply EQ, noise repair, gain, limiter or reverb only to address the audible problem, and retain the authoring settings.
+
+For a requested imposing boss-room sound, compare the accepted performance with a short room and a longer hall. Keep the direct voice centered and clear, separate the reverb onset with pre-delay, filter excess low/high-frequency reverberation, and reduce the wet level during speech when masking hurts consonants. Preserve the complete tail, exact recipe and dry source; match listening levels without treating the audition level as a production target. These are spatial finishing experiments, not new performances or proof of better model acting. Reverb cannot turn an unsuitable childlike or playful performance into an accepted adult boss voice. Use the user's preferred take and preserve rejected examples without using them as the next anchor. Stereo previews require a separate engine spatialization decision before integration.
 
 The core loop crossfade is a linear boundary blend with a rotated start. It can smooth stationary textures but may produce a perceptible dip, phase change or rhythmic mismatch. Inspect the resulting loop over repeated playback. Music often needs bar/phrase-aware editing rather than this generic crossfade.
 

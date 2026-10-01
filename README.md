@@ -10,13 +10,16 @@
 | ElevenLabs 생성 | 선택한 모델을 지원하는 공식 플러그인 도구 우선. BGM은 Music v2.5를 사용하며, 플러그인이 미지원이면 저장된 키로 공식 API를 호출하는 런타임 사용 |
 | 키가 없을 때 | 기본 `auto`가 로컬 전용으로 동작. 명시한 `only_local`은 키·플러그인이 있어도 유지 |
 | 로컬 효과음 / 대사 | Stable Audio 3 / Qwen3-TTS를 필요한 시점에 개별 설치 |
+| 선택형 캐릭터 대사 | 명시한 경우 Gemini 3.8 Flash TTS: 같은 voice ID로 상황별 연기 생성, 밀도 강화 후처리 기본 |
 | BGM | ElevenLabs Music v2.5 기본. 로컬을 지정하거나 접근 수단이 없을 때 ACE-Step 1.5와 Stable Audio 3 중 요청에 맞춰 선택 |
-| 공통 후처리 | 원본 보관, WAV 변환, 트림·게인·페이드·루프 편집, 반복 청취 파일 |
+| 공통 후처리 | 원본 보관, WAV 변환, 트림·게인·페이드·루프 편집, 대사 밀도 강화, 반복 청취 파일 |
 | 기록 | 작업 ID, 원본/결과 해시, 제공자·모델, 편집 이력, 별도 청취·반복·통합 검수 |
 
 플러그인 설치만으로 모든 생성 도구의 인증이 완료됐다고 가정하지 않습니다. 확인한 ElevenLabs 생성 스킬은 API 키를 요구합니다. 실제로 인증된 도구가 제공되면 별도 키를 다시 요구하지 않고 활용할 수 있습니다.
 
 사용 안내는 [.agents/skills/game-audio/SKILL.md](.agents/skills/game-audio/SKILL.md), 정확한 명령과 예시는 [runtime.md](.agents/skills/game-audio/references/runtime.md)에 있습니다.
+
+Codex에서 **`$game-audio 설명서`**라고 입력하면 기본 모델과 목소리·감정·로컬 모델·후처리·출력 옵션을 [간단 설명서](.agents/skills/game-audio/references/quick-manual.ko.md)로 안내합니다. 설명서 요청만으로 생성하거나 키를 조회하지 않습니다.
 
 BGM 요청에서 `provider: "auto"`는 키가 있으면 ElevenLabs `music_v2_5`를 선택합니다. 확정한 `provider: "elevenlabs", model: "music_v2_5"`를 명시해도 됩니다. 현재처럼 플러그인이 v1/v2만 제공하는 경우 런타임이 `/v1/music`을 직접 호출합니다. [v2.5 요청 예시와 실행 명령](.agents/skills/game-audio/references/runtime.md#elevenlabs-bgm-v25)을 사용하면 됩니다. 명시한 로컬 모델·구버전은 유지합니다. 과거 로컬 선호 기록은 로컬 작업에 적용됩니다.
 
@@ -28,6 +31,14 @@ uv run --no-sync python -m game_audio.cli generate .work/request.json --async
 ```
 
 FFmpeg가 필요합니다. 키는 `.secrets/elevenlabs_api_key`에 키 한 줄만 저장하거나 `ELEVENLABS_API_KEY` 환경변수로 제공합니다. 채팅·요청 JSON·Git에는 넣지 않습니다. `doctor --online`은 생성 없이 계정 상태를 확인합니다. 플러그인 결과는 `import`로 가져올 수 있습니다.
+
+Gemini 대사는 **사용하라고 명시한 경우에만** 선택합니다. [Google AI Studio](https://aistudio.google.com/api-keys)에서 만든 키를 `.secrets/gemini_api_key`에 한 줄로 저장하면 됩니다. `GEMINI_API_KEY` / `GOOGLE_API_KEY` 또는 `GEMINI_API_KEY_FILE`도 지원합니다. `gemini-voices`로 생성 없이 접근을 확인하고, [캐릭터 음성 안내](.agents/skills/game-audio/references/character-voices.md)의 `voice-plan` → `voice-create` → `generate` 흐름으로 사용합니다. ElevenLabs 기본값은 유지하며 명시한 `only_local`은 Gemini도 차단합니다.
+
+Gemini 대사는 `dialogue_processing: "auto"`가 **밀도 강화**를 적용합니다. 원본 생성 리비전은 보존하며, 작업의 `delivery_revisions`에 후처리 결과를 별도 기록합니다. `none`으로 끄거나, 기존 음원을 [finish-dialogue](.agents/skills/game-audio/references/runtime.md#dialogue-density-finishing)로 보정할 수 있습니다. ElevenLabs에는 자동으로 적용하지 않습니다. 다른 보정은 같은 원본에서 별도 비교하며, 실제 청취 승인과 파일 완성 상태는 구분합니다.
+
+SSH/Linux에서 사용하려면 [설치 안내](.agents/skills/game-audio/references/execution-setup.ko.md)에 따라 **전체 런타임·스킬·FFmpeg**를 설치하고 해당 호스트의 비공개 키 파일을 설정합니다. 스킬 문서 복사만으로 서버 런타임이 갱신되지는 않습니다. Gemini·ElevenLabs API 사용에는 GPU나 로컬 생성 모델이 필요하지 않습니다.
+
+캐릭터의 고정 음색과 대사별 감정 지시를 분리하고, voice ID·만료일·설계문·샘플 WAV·대사 WAV를 보관합니다. 현재 Google 사용자 정의 음성 ID는 1년 뒤 만료되며, 보관한 합성 WAV로 동일 ID/음색을 복원하는 기능은 보장되지 않습니다. 실제 사람 녹음과 동의를 요구하는 Voice Replication을 자동 갱신 수단으로 사용하지 않습니다. 일반 합성은 무료 할당량이 있지만 비공개 대본의 데이터 이용조건과 필요한 유료 API 결제는 해당 프로젝트에서 확인해야 합니다.
 
 로컬 모델 설치는 [local-models.md](.agents/skills/game-audio/references/local-models.md)를 따릅니다. 기본 환경에는 모델과 가중치가 포함되지 않습니다. 플러그인/API 호출 성공, 로컬 추론 성공, 실제 청취 품질은 각각 확인해야 합니다. Eleven Music의 용도별 이용조건 기록은 생성과 별개로 보관하며, 근거가 없으면 미확인으로 남깁니다. 일반 생성·비교를 막지 않으며 실제 게임 출시 권한으로 자동 승인하지 않습니다.
 

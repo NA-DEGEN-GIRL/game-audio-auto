@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Name = Annotated[str, Field(pattern=r"^[a-zA-Z0-9][a-zA-Z0-9_-]{0,79}$")]
-Provider = Literal["auto", "elevenlabs", "stable_audio", "qwen", "ace_step"]
+Provider = Literal["auto", "elevenlabs", "gemini", "stable_audio", "qwen", "ace_step"]
 
 
 class StrictModel(BaseModel):
@@ -57,6 +57,8 @@ class GenerateRequest(StrictModel):
     reference_text: str | None = None
     voice_mode: Literal["custom", "design", "clone"] = "custom"
     speaker: str = "Sohee"
+    # Auto keeps other providers untouched and finishes explicitly selected Gemini dialogue.
+    dialogue_processing: Literal["auto", "none", "density"] = "auto"
     # Music controls are sent only to backends that support them.
     bpm: int | None = Field(None, ge=30, le=300)
     key: str = ""
@@ -74,6 +76,8 @@ class GenerateRequest(StrictModel):
             raise ValueError("Music eligibility evidence applies to ElevenLabs music or auto music routing")
         if self.kind != "dialogue" and (self.voice_id or self.reference_audio or self.instruction):
             raise ValueError("Voice fields apply only to dialogue")
+        if self.kind != "dialogue" and self.dialogue_processing not in ("auto", "none"):
+            raise ValueError("Dialogue processing applies only to dialogue")
         if self.kind != "music" and (self.bpm is not None or self.key):
             raise ValueError("BPM/key apply only to music")
         if self.kind == "dialogue" and self.voice_mode == "clone" and not self.reference_audio:
@@ -121,6 +125,19 @@ class ImportRequest(StrictModel):
     playback: Playback = Field(default_factory=Playback)
 
 
+class FinishDialogueRequest(StrictModel):
+    name: Name
+    source: str
+    source_sha256: str | None = Field(None, pattern=r"^[a-f0-9]{64}$")
+    parent_revision: str | None = None
+    preset: Literal["density"] = "density"
+    low_shelf_db: float = Field(-2, ge=-6, le=0)
+    presence_db: float = Field(1.5, ge=0, le=4.5)
+    export: Export = Field(default_factory=Export)
+    playback: Playback | None = None
+    notes: str = ""
+
+
 class LocalBackend(StrictModel):
     python: str
     project_root: str | None = None
@@ -137,6 +154,7 @@ class Settings(StrictModel):
     mode: Literal["auto", "only_local"] = "auto"
     key_prompt: Literal["not_asked", "requested", "declined", "configured"] = "not_asked"
     elevenlabs_key_file: str = ".secrets/elevenlabs_api_key"
+    gemini_key_file: str = ".secrets/gemini_api_key"
     elevenlabs_output_format: str = "mp3_44100_128"
     # This is an eligibility record, not a license grant.
     elevenlabs_music_eligible: bool = False
